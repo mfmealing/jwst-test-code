@@ -133,7 +133,6 @@ for i in range(1,5):
     step = Extract2dStep()
     result = step.run(result)
     
-
     
     def interpolate_nans(array):
         nan_vals = np.isnan(array)
@@ -167,9 +166,7 @@ for i in range(1,5):
     #             result.data[:,l,nans[:,l,:]] = interp(np.where(nans[:,l,:])[0])
 
 
-     
-    xxx
-    
+
     step = SourceTypeStep()
     result = step.run(result)
     

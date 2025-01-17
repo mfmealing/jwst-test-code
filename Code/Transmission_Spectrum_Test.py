@@ -27,7 +27,7 @@ seg_list = ['001', '002', '003', '004']
 plt.figure('segments')
 for seg in seg_list: 
 
-    f='/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity/Data_Files/MAST_2024-10-15T0520/JWST/jw01366004001_04101_00001-seg%s_nrs1/jw01366004001_04101_00001-seg%s_nrs1_1Dspec_box_extract.fits.fits'%(seg, seg)
+    f='/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/jw01366004001_04101_00001-seg%s_nrs1/jw01366004001_04101_00001-seg%s_nrs1_1Dspec_box_extract.fits.fits'%(seg, seg)
     
     hdul = fits.open(f)
     int_times = hdul[1].data
@@ -122,17 +122,26 @@ for k in range(len(rat)):
     rprs2_err.append(x.std_dev)
 
 
+result_old = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/final_spectrum_data_OLD.csv', delimiter=',')
+result_final = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/final_spectrum_data.csv', delimiter=',')
+
+wav_old = result_old[0]
+r_old = result_old[1]
+r_err_old = result_old[2]
+wav_final = result_final[0]
+r_final = result_final[1]
+r_err_final = result_final[2]
+
 # plt.figure('slc_new')
 # plt.plot(bjd, np.sum(slc[:,60:70], axis=1), '.')
 
 # plt.figure('slc')
 # plt.plot(bjd, slc_new[6], '.')
 
-plt.figure('ratio spectrum')
-plt.errorbar(wav_avg, rat, rat_err, fmt='o')
+# plt.figure('ratio spectrum')
+# plt.errorbar(wav_avg, rat, rat_err, fmt='o')
 
 plt.figure('transmission spectrum')
-plt.errorbar(wav_avg, rprs2, rprs2_err, fmt='o')
-     
-#result = gmodel.fit(slc_new[6], lm_params, t=t, ldc_type = 'quad')
-#print (result.fit_report())
+plt.errorbar(wav_old, r_old, r_err_old, fmt='ro', label='old data')
+plt.errorbar(wav_final, r_final, r_err_final, fmt='bo', label='new data')
+plt.legend(loc='lower center', numpoints=1)

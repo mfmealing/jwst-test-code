@@ -36,7 +36,7 @@ seg_list = ['001', '002', '003', '004']
 plt.figure('segments')
 for seg in seg_list: 
 
-    f='/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity/Data_Files/MAST_2024-10-15T0520/JWST/jw01366004001_04101_00001-seg%s_nrs1/jw01366004001_04101_00001-seg%s_nrs1_1Dspec_box_extract.fits.fits'%(seg, seg)
+    f='/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity/Projects/JWST_Test_Code/Data/jw01366004001_04101_00001-seg%s_nrs1/jw01366004001_04101_00001-seg%s_nrs1_1Dspec_box_extract.fits.fits'%(seg, seg)
     
     hdul = fits.open(f)
     int_times = hdul[1].data
