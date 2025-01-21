@@ -9,6 +9,8 @@ matplotlib.style.use('classic')
  
 import pylightcurve as plc
 from astropy.io import fits
+import emcee
+import corner
 # import pandas as pd
  
 
@@ -95,6 +97,13 @@ slc_new = []
 wav_avg = []
 rat = []
 rat_err = []
+t0 = []
+gamma0 = []
+gamma1 = []
+ars = []
+inc = []
+a = []
+b = []
 
 
 for i in range(1+int(len(slc[1])/wav_bin)):
@@ -106,11 +115,17 @@ for i in range(1+int(len(slc[1])/wav_bin)):
     #print(result.params['rat'].value)
     rat.append(result.params['rat'].value)
     rat_err.append(result.params['rat'].stderr)
-    
+    t0.append(result.params['t0'].value)
+    gamma0.append(result.params['gamma0'].value)
+    gamma1.append(result.params['gamma1'].value)
+    ars.append(result.params['ars'].value)
+    inc.append(result.params['inc'].value)
+    a.append(result.params['a'].value)
+    b.append(result.params['b'].value)
 
-for j in range(len(slc_new)):
-    plt.figure('slc all')
-    plt.plot(bjd, slc_new[j], '.')
+# for j in range(len(slc_new)):
+#     plt.figure('slc all')
+#     plt.plot(bjd, slc_new[j], '.')
 
 rprs2 = []
 rprs2_err = []
@@ -132,12 +147,6 @@ wav_final = result_final[0]
 r_final = result_final[1]
 r_err_final = result_final[2]
 
-# plt.figure('slc_new')
-# plt.plot(bjd, np.sum(slc[:,60:70], axis=1), '.')
-
-# plt.figure('slc')
-# plt.plot(bjd, slc_new[6], '.')
-
 # plt.figure('ratio spectrum')
 # plt.errorbar(wav_avg, rat, rat_err, fmt='o')
 
@@ -145,3 +154,57 @@ plt.figure('transmission spectrum')
 plt.errorbar(wav_old, r_old, r_err_old, fmt='ro', label='old data')
 plt.errorbar(wav_final, r_final, r_err_final, fmt='bo', label='new data')
 plt.legend(loc='lower center', numpoints=1)
+
+
+theta = (rat, t0, gamma0 , gamma1, ars, inc, a, b)
+n_walkers = 500
+n_dim = 8
+n_iter = 1000
+
+
+def model(theta, per=lm_per, w=lm_w, ecc=lm_ecc, ldc_type='quad'):
+    rat, t0, gamma0, gamma1, ars, inc, a, b = theta
+    lc = plc.transit([gamma0, gamma1], rat, per, ars, ecc, inc, w, t0, t, method=ldc_type)
+    syst = (a*t) + b
+ 
+    lc = lc * syst
+    return lc
+
+def lnlike(theta, x, y, y_err):
+    return -0.5 * np.sum(((y - model(theta))/y_err) ** 2)
+
+def lnprior(theta):
+    rat, t0, gamma0, gamma1, ars, inc, a, b = theta
+    if 0.0 < rat < 0.3 and 0.0 < t0 < 0.3 and 0.0 < gamma0 < 1.0 and 0.0 < gamma1 < 1.0 and 5.0 < ars < 15.0 and 80.0 < inc < 90.0 and -3e6 < a < 0.0 and 4e8 < b < 7e8:
+        return 0.0
+    return -np.inf
+
+def lnprob(theta, x, y, y_err):
+    lp = lnprior(theta)
+    if not np.isfinite(lp):
+        return -np.inf
+    return lp + lnlike(theta, x, y, y_err)
+
+data = (wav_final, r_final, r_err_final)
+initial = np.array([lm_rat, lm_t0, lm_gamma0, lm_gamma1, lm_ars, lm_inc, lm_a, lm_b])
+p0 = [np.array(initial) + 1e-7 * np.random.randn(n_dim) for i in range(n_walkers)]
+
+def mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data):
+    sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, args=data)
+    p0, _, _ = sampler.run_mcmc(p0, 100)
+    sampler.reset()
+    pos, prob, state = sampler.run_mcmc(p0, n_iter)
+    return sampler, pos, prob, state
+
+sampler, pos, prob, state = mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data)
+samples = sampler.flatchain
+
+theta_max  = samples[np.argmax(sampler.flatlnprobability)]
+best_fit_model = model(theta_max)
+plt.figure('mcmc fit')
+plt.errorbar(wav_final, r_final, r_err_final, fmt='bo')
+plt.plot(wav_final, best_fit_model, 'r-')
+plt.show()
+
+labels = ['rat', 't0', 'gamma0', 'gamma1', 'ars', 'inc', 'b', 'c']
+fig = corner.corner(samples, show_titles=True, labels=labels, quantiles=[0.16, 0.5, 0.84])
