@@ -62,14 +62,17 @@ bjd = bjd_stack
 plt.figure('wlc')
 plt.plot(bjd, wlc, '.')
 
+
+fixed_vals = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity/Projects/JWST_Test_Code/Data/lm_fit_fixed_vals.csv', delimiter=',')
+
 t= bjd-bjd[0]
 lm_rat = (21228/1e6)**0.5
-lm_t0 = 0.19130635
-lm_gamma0 = 0.33299886
-lm_gamma1 = 0.04429838
+lm_t0 = fixed_vals[0]
+lm_gamma0 = fixed_vals[1]
+lm_gamma1 = fixed_vals[2]
 lm_per = 4.0552941
-lm_ars = 11.3478759
-lm_inc = 87.6911968
+lm_ars = fixed_vals[3]
+lm_inc = fixed_vals[4]
 lm_w = 90
 lm_ecc = 0
 lm_a = (wlc[-1]-wlc[0])/(t[-1]-t[0])
@@ -94,20 +97,15 @@ lm_params.add('b', value=lm_b, vary=True)
 wav_bin = 10
 count = 0
 slc_new = []
+var_new = []
 wav_avg = []
 rat = []
 rat_err = []
-t0 = []
-gamma0 = []
-gamma1 = []
-ars = []
-inc = []
-a = []
-b = []
 
 
 for i in range(1+int(len(slc[1])/wav_bin)):
     slc_new.append(np.nansum(slc[:,count:(count+wav_bin)],axis=1))
+    var_new.append(np.nansum(var[:,count:(count+wav_bin)],axis=1))
     wav_avg.append(np.mean(wav[count:(count+wav_bin)]))
     count += wav_bin
     
@@ -115,13 +113,6 @@ for i in range(1+int(len(slc[1])/wav_bin)):
     #print(result.params['rat'].value)
     rat.append(result.params['rat'].value)
     rat_err.append(result.params['rat'].stderr)
-    t0.append(result.params['t0'].value)
-    gamma0.append(result.params['gamma0'].value)
-    gamma1.append(result.params['gamma1'].value)
-    ars.append(result.params['ars'].value)
-    inc.append(result.params['inc'].value)
-    a.append(result.params['a'].value)
-    b.append(result.params['b'].value)
 
 # for j in range(len(slc_new)):
 #     plt.figure('slc all')
@@ -136,6 +127,8 @@ for k in range(len(rat)):
     rprs2.append(x.nominal_value)
     rprs2_err.append(x.std_dev)
 
+final_data = (wav_avg, rprs2, rprs2_err)
+np.savetxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/final_spectrum_data.csv', final_data, delimiter=',')
 
 result_old = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/final_spectrum_data_OLD.csv', delimiter=',')
 result_final = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/final_spectrum_data.csv', delimiter=',')
@@ -156,26 +149,34 @@ plt.errorbar(wav_final, r_final, r_err_final, fmt='bo', label='new data')
 plt.legend(loc='lower center', numpoints=1)
 
 
-theta = (rat, t0, gamma0 , gamma1, ars, inc, a, b)
+
+
+
+
+fixed_vals_mcmc = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity/Projects/JWST_Test_Code/Data/mcmc_fit_fixed_vals.csv', delimiter=',')
+
+theta = (lm_rat, lm_a, lm_b)
+params = fixed_vals_mcmc
 n_walkers = 500
-n_dim = 8
-n_iter = 1000
+n_dim = 3
+n_iter = 2000
 
 
-def model(theta, per=lm_per, w=lm_w, ecc=lm_ecc, ldc_type='quad'):
-    rat, t0, gamma0, gamma1, ars, inc, a, b = theta
+def model(theta, params=params, per=lm_per, w=lm_w, ecc=lm_ecc, ldc_type='quad'):
+    rat, a, b = theta
+    t0, gamma0, gamma1, ars, inc = params
     lc = plc.transit([gamma0, gamma1], rat, per, ars, ecc, inc, w, t0, t, method=ldc_type)
     syst = (a*t) + b
- 
     lc = lc * syst
+    
     return lc
 
 def lnlike(theta, x, y, y_err):
     return -0.5 * np.sum(((y - model(theta))/y_err) ** 2)
 
 def lnprior(theta):
-    rat, t0, gamma0, gamma1, ars, inc, a, b = theta
-    if 0.0 < rat < 0.3 and 0.0 < t0 < 0.3 and 0.0 < gamma0 < 1.0 and 0.0 < gamma1 < 1.0 and 5.0 < ars < 15.0 and 80.0 < inc < 90.0 and -3e6 < a < 0.0 and 4e8 < b < 7e8:
+    rat, a, b = theta
+    if 0.0 < rat < 0.3 and -3e6 < a < 0.0 and 4e8 < b < 7e8:
         return 0.0
     return -np.inf
 
@@ -185,26 +186,35 @@ def lnprob(theta, x, y, y_err):
         return -np.inf
     return lp + lnlike(theta, x, y, y_err)
 
-data = (wav_final, r_final, r_err_final)
-initial = np.array([lm_rat, lm_t0, lm_gamma0, lm_gamma1, lm_ars, lm_inc, lm_a, lm_b])
-p0 = [np.array(initial) + 1e-7 * np.random.randn(n_dim) for i in range(n_walkers)]
-
 def mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data):
     sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, args=data)
-    p0, _, _ = sampler.run_mcmc(p0, 100)
+    p0, _, _ = sampler.run_mcmc(p0, 1000)
     sampler.reset()
     pos, prob, state = sampler.run_mcmc(p0, n_iter)
     return sampler, pos, prob, state
 
-sampler, pos, prob, state = mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data)
-samples = sampler.flatchain
+mcmc_rat = []
+mcmc_rat_err = []
 
-theta_max  = samples[np.argmax(sampler.flatlnprobability)]
-best_fit_model = model(theta_max)
-plt.figure('mcmc fit')
-plt.errorbar(wav_final, r_final, r_err_final, fmt='bo')
-plt.plot(wav_final, best_fit_model, 'r-')
-plt.show()
 
-labels = ['rat', 't0', 'gamma0', 'gamma1', 'ars', 'inc', 'b', 'c']
+for j in range(1+int(len(slc[1])/wav_bin)):
+    data = (t, slc_new[j], var_new[j])
+    initial = np.array([lm_rat, lm_a, lm_b])
+    p0 = [np.array(initial) + 1e-7 * np.random.randn(n_dim) for i in range(n_walkers)]
+
+    sampler, pos, prob, state = mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data)
+    samples = sampler.flatchain
+    # print('done')
+    
+    # vals = np.percentile(samples[0], [16, 50, 84])
+    # print(vals)
+    # err = np.diff(vals)
+    # mcmc_rat.append(vals[1])
+    # mcmc_rat_err.append(np.mean(err))
+    
+    print(mcmc_rat)
+labels = ['rat', 'a', 'b']
 fig = corner.corner(samples, show_titles=True, labels=labels, quantiles=[0.16, 0.5, 0.84])
+
+plt.figure('ratio spectrum')
+plt.errorbar(wav_avg, mcmc_rat, mcmc_rat_err, fmt='o')

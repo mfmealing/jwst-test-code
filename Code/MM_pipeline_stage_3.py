@@ -292,7 +292,7 @@ reduce_chi_lin = chi_lin/len(wlc)
 theta = (lm_rat, lm_t0, lm_gamma0 , lm_gamma1, lm_ars, lm_inc, lm_b, lm_c)
 n_walkers = 500
 n_dim = 8
-n_iter = 1000
+n_iter = 2000
 # p0 = np.random.rand(nwalkers, ndim)
 
 
@@ -325,7 +325,7 @@ def lnlike(theta, x, y, y_err):
 
 def lnprior(theta):
     rat, t0, gamma0, gamma1, ars, inc, b, c = theta
-    if 0.0 < rat < 0.3 and 0.0 < t0 < 0.3 and 0.0 < gamma0 < 1.0 and 0.0 < gamma1 < 1.0 and 5.0 < ars < 15.0 and 80.0 < inc < 90.0 and -3e6 < b < 0.0 and 4e8 < c < 7e8:
+    if 0.1 < rat < 0.2 and 0.1 < t0 < 0.3 and 0.0 < gamma0 < 1.0 and 0.0 < gamma1 < 1.0 and 5.0 < ars < 15.0 and 80.0 < inc < 90.0 and -1e6 < b < -3e6 and 4e8 < c < 7e8:
         return 0.0
     return -np.inf
 
@@ -337,14 +337,15 @@ def lnprob(theta, x, y, y_err):
 
 data = (t, wlc, wlc_var)
 initial = np.array([lm_rat, lm_t0, lm_gamma0, lm_gamma1, lm_ars, lm_inc, lm_b, lm_c])
-p0 = [np.array(initial) + 1e-7 * np.random.randn(n_dim) for i in range(n_walkers)]
+p0 = [np.array(initial) + 1e-4 * np.random.randn(n_dim) for i in range(n_walkers)]
 
 def mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data):
     sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, args=data)
-    p0, _, _ = sampler.run_mcmc(p0, 100)
+    p0, _, _ = sampler.run_mcmc(p0, 1000)
     sampler.reset()
     pos, prob, state = sampler.run_mcmc(p0, n_iter)
     return sampler, pos, prob, state
+
 
 sampler, pos, prob, state = mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data)
 samples = sampler.flatchain
@@ -357,4 +358,12 @@ plt.plot(t, best_fit_model, 'r-')
 plt.show()
 
 labels = ['rat', 't0', 'gamma0', 'gamma1', 'ars', 'inc', 'b', 'c']
-fig = corner.corner(samples, show_titles=True, labels=labels, quantiles=[0.16, 0.5, 0.84])
+fig = corner.corner(samples, show_titles=True, title_fmt='.2f', labels=labels, smooth=True, quantiles=[0.16, 0.5, 0.84])
+
+final_vals = []
+for i in range(n_dim):
+    vals = np.percentile(samples[:, i], [16, 50, 84])
+    final_vals.append(mcmc[1])
+
+fixed_data = final_vals[1:6]
+np.savetxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity/Projects/JWST_Test_Code/Data/mcmc_fit_fixed_vals.csv', fixed_data, delimiter=',')
