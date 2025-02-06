@@ -288,24 +288,14 @@ reduce_chi_lin = chi_lin/len(wlc)
 
 
 
+# =============================================================================
+# MCMC
+# =============================================================================
 
 theta = (lm_rat, lm_t0, lm_gamma0 , lm_gamma1, lm_ars, lm_inc, lm_b, lm_c)
-n_walkers = 500
+n_walkers = 64
 n_dim = 8
 n_iter = 2000
-# p0 = np.random.rand(nwalkers, ndim)
-
-
-# sampler = emcee.EnsembleSampler(nwalkers, ndim, transit_model, args=theta)
-# state = sampler.run_mcmc(p0, 100)
-# sampler.reset()
-# sampler.run_mcmc(state, 10000)
-
-# samples = sampler.get_chain(flat=True)
-# plt.hist(samples[:, 0], 100, color="k", histtype="step")
-# plt.xlabel(r"$\theta_1$")
-# plt.ylabel(r"$p(\theta_1)$")
-# plt.gca().set_yticks([])
 
 lm_a = 0
 lm_per = 4.0552941
@@ -339,16 +329,12 @@ data = (t, wlc, wlc_var)
 initial = np.array([lm_rat, lm_t0, lm_gamma0, lm_gamma1, lm_ars, lm_inc, lm_b, lm_c])
 p0 = [np.array(initial) + 1e-4 * np.random.randn(n_dim) for i in range(n_walkers)]
 
-def mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data):
-    sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, args=data)
-    p0, _, _ = sampler.run_mcmc(p0, 1000)
-    sampler.reset()
-    pos, prob, state = sampler.run_mcmc(p0, n_iter)
-    return sampler, pos, prob, state
-
-
-sampler, pos, prob, state = mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data)
+sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, args=(t, wlc, wlc_var))
+p0, _, _ = sampler.run_mcmc(p0, 1000, progress=True, tune=True)
+sampler.reset()
+pos, prob, state = sampler.run_mcmc(p0, n_iter, progress=True, tune=True)
 samples = sampler.flatchain
+
 
 theta_max  = samples[np.argmax(sampler.flatlnprobability)]
 best_fit_model = model(theta_max)
@@ -360,10 +346,7 @@ plt.show()
 labels = ['rat', 't0', 'gamma0', 'gamma1', 'ars', 'inc', 'b', 'c']
 fig = corner.corner(samples, show_titles=True, title_fmt='.2f', labels=labels, smooth=True, quantiles=[0.16, 0.5, 0.84])
 
-final_vals = []
-for i in range(n_dim):
-    vals = np.percentile(samples[:, i], [16, 50, 84])
-    final_vals.append(mcmc[1])
-
-fixed_data = final_vals[1:6]
-np.savetxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity/Projects/JWST_Test_Code/Data/mcmc_fit_fixed_vals.csv', fixed_data, delimiter=',')
+# final_vals = []
+# for i in range(n_dim):
+#     vals = np.percentile(samples[:, i], [16, 50, 84])
+#     final_vals.append(vals[1])

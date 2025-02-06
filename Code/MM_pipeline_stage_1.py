@@ -60,7 +60,7 @@ if not os.path.exists(output_dir ):
     
 from jwst.stpipe import Step 
 
-for i in range(1,5):
+for i in range(1,2):
 
     file = '/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity/Projects/JWST_Test_Code/Data/jw01366004001_04101_00001-seg00'+str(i)+'_nrs1/jw01366004001_04101_00001-seg00'+str(i)+'_nrs1_uncal.fits'
          
@@ -99,7 +99,7 @@ for i in range(1,5):
         bkg_stack = np.hstack((first_pix,last_pix))
         bkg_med = np.nanmedian(bkg_stack, axis=1)
         bkg_3d = np.expand_dims(bkg_med, axis=1)
-        bkg = np.repeat(bkg_3d, 32, axis=1)
+        bkg = np.repeat(bkg_3d, result.shape[2], axis=1)
         result.data[j] = result.data[j] - bkg
     
     # if channel == 'prism':
@@ -151,7 +151,3 @@ for i in range(1,5):
     # result.save('%s/%s_%s.fits'%(file_path,file_name, tag)) 
      
     result.save('%s.fits'%(file_name)) 
-
- 
-
- 

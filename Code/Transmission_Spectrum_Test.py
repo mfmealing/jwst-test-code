@@ -127,8 +127,8 @@ for k in range(len(rat)):
     rprs2.append(x.nominal_value)
     rprs2_err.append(x.std_dev)
 
-final_data = (wav_avg, rprs2, rprs2_err)
-np.savetxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/final_spectrum_data.csv', final_data, delimiter=',')
+# final_data = (wav_avg, rprs2, rprs2_err)
+# np.savetxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/final_spectrum_data.csv', final_data, delimiter=',')
 
 result_old = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/final_spectrum_data_OLD.csv', delimiter=',')
 result_final = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity//Projects/JWST_Test_Code/Data/final_spectrum_data.csv', delimiter=',')
@@ -157,7 +157,7 @@ fixed_vals_mcmc = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-Car
 
 theta = (lm_rat, lm_a, lm_b)
 params = fixed_vals_mcmc
-n_walkers = 500
+n_walkers = 500  # Change back to 500 after testing
 n_dim = 3
 n_iter = 2000
 
@@ -176,7 +176,7 @@ def lnlike(theta, x, y, y_err):
 
 def lnprior(theta):
     rat, a, b = theta
-    if 0.0 < rat < 0.3 and -3e6 < a < 0.0 and 4e8 < b < 7e8:
+    if 0.1 < rat < 0.3 and -1e6 < a < -3e6 and 4e8 < b < 7e8:
         return 0.0
     return -np.inf
 
@@ -193,9 +193,9 @@ def mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data):
     pos, prob, state = sampler.run_mcmc(p0, n_iter)
     return sampler, pos, prob, state
 
+
 mcmc_rat = []
 mcmc_rat_err = []
-
 
 for j in range(1+int(len(slc[1])/wav_bin)):
     data = (t, slc_new[j], var_new[j])
@@ -204,17 +204,29 @@ for j in range(1+int(len(slc[1])/wav_bin)):
 
     sampler, pos, prob, state = mcmc(p0, n_walkers, n_iter, n_dim, lnprob, data)
     samples = sampler.flatchain
-    # print('done')
     
-    # vals = np.percentile(samples[0], [16, 50, 84])
+    vals = np.percentile(samples[0,0], [16, 50, 84])
     # print(vals)
-    # err = np.diff(vals)
-    # mcmc_rat.append(vals[1])
-    # mcmc_rat_err.append(np.mean(err))
-    
-    print(mcmc_rat)
-labels = ['rat', 'a', 'b']
-fig = corner.corner(samples, show_titles=True, labels=labels, quantiles=[0.16, 0.5, 0.84])
+    err = np.diff(vals)
+    mcmc_rat.append(vals[1])
+    mcmc_rat_err.append(np.mean(err))
 
-plt.figure('ratio spectrum')
+    
+labels = ['rat', 'a', 'b']
+fig = corner.corner(samples, show_titles=True, labels=labels, smooth=True, quantiles=[0.16, 0.5, 0.84])
+
+plt.figure('mcmc ratio spectrum')
+# plt.plot(wav_avg, mcmc_rat, '.')
 plt.errorbar(wav_avg, mcmc_rat, mcmc_rat_err, fmt='o')
+
+mcmc_rprs2 = []
+mcmc_rprs2_err = []
+
+for l in range(len(mcmc_rat)):
+    x = ufloat(mcmc_rat[l],mcmc_rat_err[l])
+    x = x**2
+    mcmc_rprs2.append(x.nominal_value)
+    mcmc_rprs2_err.append(x.std_dev)
+
+plt.figure('mcmc transmission spectrum')
+plt.errorbar(wav_avg, mcmc_rprs2, mcmc_rprs2_err, fmt='o')

@@ -151,22 +151,6 @@ for i in range(1,5):
     result.data[:,low_nans[0],low_nans[1]] = np.apply_along_axis(interpolate_nans, axis=0, arr=result.data[:,low_nans[0],low_nans[1]])
     result.data = np.apply_along_axis(interpolate_nans, axis=2, arr=result.data)
 
-    
-    # if np.any(result.data[:,low_nans[0],low_nans[1]] < 0.1):
-    #     non_nans = np.where(~nans[:,low_nans[0],low_nans[1]])
-    #     non_nan_vals = result.data[:,low_nans[0],low_nans[1]]
-    #     interp = interpolate.interp1d(non_nans, non_nan_vals, bounds_error=False, fill_value='extrapolate')
-    #     result.data[:,low_nans[0],low_nans[1]] = interp(np.where(nans[:,low_nans[0],low_nans[1]])[0])
-    # else:
-    #     for l in range(result.data.shape[1]):
-    #         if np.any(nans[:,l,:]):
-    #             non_nans = np.where(~nans[:,l,:])[0]
-    #             non_nan_vals = result.data[:,l,non_nans]
-    #             interp = interpolate.interp1d(non_nans, non_nan_vals, bounds_error=False, fill_value='extrapolate')
-    #             result.data[:,l,nans[:,l,:]] = interp(np.where(nans[:,l,:])[0])
-
-
-
     step = SourceTypeStep()
     result = step.run(result)
     
