@@ -327,7 +327,7 @@ def lnprob(theta, x, y, y_err):
 
 data = (t, wlc, wlc_var)
 initial = np.array([lm_rat, lm_t0, lm_gamma0, lm_gamma1, lm_ars, lm_inc, lm_b, lm_c])
-p0 = [np.array(initial) + 1e-4 * np.random.randn(n_dim) for i in range(n_walkers)]
+p0 = [np.array(initial) + 1e-7 * np.random.randn(n_dim) for i in range(n_walkers)]
 
 sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, args=(t, wlc, wlc_var))
 p0, _, _ = sampler.run_mcmc(p0, 1000, progress=True, tune=True)

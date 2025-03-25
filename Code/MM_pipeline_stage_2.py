@@ -128,7 +128,6 @@ for i in range(1,5):
     # step.save_results = True
     result = step.run(file)
     wav = result.wavelength
-    
      
     step = Extract2dStep()
     result = step.run(result)
