@@ -12,6 +12,7 @@ import emcee
 import corner
 # import pandas as pd
  
+plt.ioff()
 
 from lmfit import Model as lmfit_Model
 
@@ -94,7 +95,7 @@ slc  =  np.add.reduceat(slc, idx, axis=0)[:-1]
 var  =  np.add.reduceat(var, idx, axis=0)[:-1]
 idx = np.argwhere((wav<1.0 ) | (wav>2.0)).T[0]
 wlc  =  np.nansum(slc[:,idx],axis=1)
-wlc_var  =  np.nansum(var[:,idx],axis=1)
+wlc_var  =  np.nansum(var[:,idx],axis=1)*20
 print ('time_step (s): ', np.diff(bjd)[0]*24*60*60)   
 plt.errorbar(bjd, wlc, wlc_var**0.5, fmt='ro')
 
@@ -138,10 +139,11 @@ initial_guess_lin = transit_model(t, lm_rat, lm_t0, lm_gamma0 , lm_gamma1,
 
 
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,5))
-ax1.plot(t, wlc, 'bo')
-ax1.plot(t, initial_guess_lin, 'g-', linewidth=3)
-ax1.set_title('intial guess: linear')
+# fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,5))
+plt.figure('initial guess')
+plt.plot(t, wlc, 'bo')
+plt.plot(t, initial_guess_lin, 'g-', linewidth=3)
+# ax1.set_title('intial guess: linear')
 # ax2.plot(t, wlc, 'bo')
 # ax2.plot(t, initial_guess_quad, 'g-', linewidth=3)
 # ax2.set_title('intial guess: quadratic')
@@ -235,10 +237,11 @@ model_fit_lin = transit_model(t, result_lin.params['rat'].value,
 #                          result_exp.params['ars'], result_exp.params['inc'], lm_w, lm_ecc,
 #                          result_exp.params['A'].value, result_exp.params['B'].value)
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,5))
-ax1.plot(t, wlc, 'bo')
-ax1.plot(t, model_fit_lin, 'r-', linewidth = 3)
-ax1.set_title('lm_fit linear')
+# fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,5))
+plt.figure('lm fit')
+plt.plot(t, wlc, 'bo')
+plt.plot(t, model_fit_lin, 'r-', linewidth = 3)
+# ax1.set_title('lm_fit linear')
 # ax2.plot(t, wlc, 'bo')
 # ax2.plot(t, model_fit_quad, 'r-', linewidth = 3)
 # ax2.set_title('lm_fit quadratic')
@@ -252,15 +255,15 @@ ax1.set_title('lm_fit linear')
 # residuals and best fit models
 # =============================================================================
 
-res_lin = model_fit_lin - wlc
+# res_lin = model_fit_lin - wlc
 # res_quad = model_fit_quad - wlc
 # res_exp = model_fit_exp - wlc
 # print(np.std(res_lin), np.std(res_quad), np.std(res_exp))
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,5))
-ax1.plot(t, res_lin, '.')
-ax1.grid(True)
-ax1.set_title('linear residuals')
+# fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,5))
+# plt.plot(t, res_lin, '.')
+# ax1.grid(True)
+# ax1.set_title('linear residuals')
 # ax2.plot(t, res_quad, '.')
 # ax2.grid(True)
 # ax2.set_title('quadratic residuals')
@@ -269,16 +272,16 @@ ax1.set_title('linear residuals')
 # ax3.set_title('exponential residuals')
 # plt.tight_layout()
 
-var_lin = np.var(res_lin)
+# var_lin = np.var(res_lin)
 # var_quad = np.var(res_quad)
 # var_exp = np.var(res_exp)
 
-chi_lin = np.nansum(res_lin**2/var_lin)
+# chi_lin = np.nansum(res_lin**2/var_lin)
 # chi_quad = np.nansum(res_quad**2/var_quad)
 # chi_exp = np.nansum(res_exp**2/var_exp)
 # print(chi_lin, chi_quad, chi_exp)
 
-reduce_chi_lin = chi_lin/len(wlc)
+# reduce_chi_lin = chi_lin/len(wlc)
 # reduce_chi_quad = chi_quad/len(wlc)
 # reduce_chi_exp = chi_exp/len(wlc)
 # print(reduce_chi_lin, reduce_chi_quad, reduce_chi_exp)
@@ -293,16 +296,16 @@ reduce_chi_lin = chi_lin/len(wlc)
 # =============================================================================
 
 theta = (lm_rat, lm_t0, lm_gamma0 , lm_gamma1, lm_ars, lm_inc, lm_b, lm_c)
-n_walkers = 64
+n_walkers = 16
 n_dim = 8
-n_iter = 2000
+n_iter = 20000
 
 lm_a = 0
 lm_per = 4.0552941
 lm_w = 90
 lm_ecc = 0
 
-def model(theta, a=lm_a, per=lm_per, w=lm_w, ecc=lm_ecc, ldc_type='quad'):
+def model(theta, t=t, a=lm_a, per=lm_per, w=lm_w, ecc=lm_ecc, ldc_type='quad'):
     rat, t0, gamma0, gamma1, ars, inc, b, c = theta
     lc = plc.transit([gamma0, gamma1], rat, per, ars, ecc, inc, w, t0, t, method=ldc_type)
     syst = (a*t**2) + (b*t) + c
@@ -315,7 +318,7 @@ def lnlike(theta, x, y, y_err):
 
 def lnprior(theta):
     rat, t0, gamma0, gamma1, ars, inc, b, c = theta
-    if 0.1 < rat < 0.2 and 0.1 < t0 < 0.3 and 0.0 < gamma0 < 1.0 and 0.0 < gamma1 < 1.0 and 5.0 < ars < 15.0 and 80.0 < inc < 90.0 and -1e6 < b < -3e6 and 4e8 < c < 7e8:
+    if 0.1 < rat < 0.2 and 0.1 < t0 < 0.3 and 0.0 < gamma0 < 1.0 and 0.0 < gamma1 < 1.0 and 5.0 < ars < 15.0 and 80.0 < inc < 90.0 and -3e6 < b < -1e6 and 4e8 < c < 7e8:
         return 0.0
     return -np.inf
 
@@ -327,14 +330,13 @@ def lnprob(theta, x, y, y_err):
 
 data = (t, wlc, wlc_var)
 initial = np.array([lm_rat, lm_t0, lm_gamma0, lm_gamma1, lm_ars, lm_inc, lm_b, lm_c])
-p0 = [np.array(initial) + 1e-7 * np.random.randn(n_dim) for i in range(n_walkers)]
+p0 = [np.array(initial) + 1e-1 * np.random.randn(n_dim) for i in range(n_walkers)]
 
 sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, args=(t, wlc, wlc_var))
 p0, _, _ = sampler.run_mcmc(p0, 1000, progress=True, tune=True)
 sampler.reset()
 pos, prob, state = sampler.run_mcmc(p0, n_iter, progress=True, tune=True)
 samples = sampler.flatchain
-
 
 theta_max  = samples[np.argmax(sampler.flatlnprobability)]
 best_fit_model = model(theta_max)
