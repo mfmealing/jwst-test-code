@@ -11,8 +11,6 @@ from astropy.io import fits
 import emcee
 import corner
 # import pandas as pd
- 
-plt.ioff()
 
 from lmfit import Model as lmfit_Model
 
@@ -95,7 +93,7 @@ slc  =  np.add.reduceat(slc, idx, axis=0)[:-1]
 var  =  np.add.reduceat(var, idx, axis=0)[:-1]
 idx = np.argwhere((wav<1.0 ) | (wav>2.0)).T[0]
 wlc  =  np.nansum(slc[:,idx],axis=1)
-wlc_var  =  np.nansum(var[:,idx],axis=1)*20
+wlc_var  =  np.nansum(var[:,idx],axis=1)
 print ('time_step (s): ', np.diff(bjd)[0]*24*60*60)   
 plt.errorbar(bjd, wlc, wlc_var**0.5, fmt='ro')
 
@@ -172,7 +170,7 @@ lm_params_lin.add('a', value = 0, vary=False)
 lm_params_lin.add('b', value=lm_b, vary=True)
 lm_params_lin.add('c', value=lm_c, vary=True)
      
-result_lin = gmodel_lin.fit(wlc, lm_params_lin, t=t, ldc_type = 'quad', weights=(1/wlc_var**(1/2)))
+result_lin = gmodel_lin.fit(wlc, lm_params_lin, t=t, ldc_type = 'quad', weights=(1/wlc_var**(0.5)))
 print (result_lin.fit_report())
 
 model_fit_lin = transit_model(t, result_lin.params['rat'].value, 
@@ -288,9 +286,6 @@ plt.plot(t, model_fit_lin, 'r-', linewidth = 3)
 
 
 
-
-
-
 # =============================================================================
 # MCMC
 # =============================================================================
@@ -298,14 +293,15 @@ plt.plot(t, model_fit_lin, 'r-', linewidth = 3)
 theta = (lm_rat, lm_t0, lm_gamma0 , lm_gamma1, lm_ars, lm_inc, lm_b, lm_c)
 n_walkers = 16
 n_dim = 8
-n_iter = 20000
+n_iter = 10000
+burn_in = 80000
 
 lm_a = 0
 lm_per = 4.0552941
 lm_w = 90
 lm_ecc = 0
 
-def model(theta, t=t, a=lm_a, per=lm_per, w=lm_w, ecc=lm_ecc, ldc_type='quad'):
+def plc_model(t, theta, a=lm_a, per=lm_per, w=lm_w, ecc=lm_ecc, ldc_type='quad'):
     rat, t0, gamma0, gamma1, ars, inc, b, c = theta
     lc = plc.transit([gamma0, gamma1], rat, per, ars, ecc, inc, w, t0, t, method=ldc_type)
     syst = (a*t**2) + (b*t) + c
@@ -314,7 +310,9 @@ def model(theta, t=t, a=lm_a, per=lm_per, w=lm_w, ecc=lm_ecc, ldc_type='quad'):
     return lc
 
 def lnlike(theta, x, y, y_err):
-    return -0.5 * np.sum(((y - model(theta))/y_err) ** 2)
+    model = plc_model(x,theta)
+    sigma2 = y_err**2
+    return -0.5 * np.sum((y - model)**2 / sigma2 + np.log(sigma2))
 
 def lnprior(theta):
     rat, t0, gamma0, gamma1, ars, inc, b, c = theta
@@ -328,25 +326,47 @@ def lnprob(theta, x, y, y_err):
         return -np.inf
     return lp + lnlike(theta, x, y, y_err)
 
+wlc_var = np.sqrt(wlc_var)
 data = (t, wlc, wlc_var)
 initial = np.array([lm_rat, lm_t0, lm_gamma0, lm_gamma1, lm_ars, lm_inc, lm_b, lm_c])
-p0 = [np.array(initial) + 1e-1 * np.random.randn(n_dim) for i in range(n_walkers)]
+p0 = initial + 1e-2 * initial * np.random.randn(n_walkers, n_dim)
 
 sampler = emcee.EnsembleSampler(n_walkers, n_dim, lnprob, args=(t, wlc, wlc_var))
-p0, _, _ = sampler.run_mcmc(p0, 1000, progress=True, tune=True)
-sampler.reset()
-pos, prob, state = sampler.run_mcmc(p0, n_iter, progress=True, tune=True)
-samples = sampler.flatchain
+sampler.run_mcmc(p0, n_iter, progress=True)
 
-theta_max  = samples[np.argmax(sampler.flatlnprobability)]
-best_fit_model = model(theta_max)
-plt.figure('mcmc fit')
-plt.plot(t, wlc, 'bo')
-plt.plot(t, best_fit_model, 'r-')
-plt.show()
+
+samples = sampler.get_chain()
+# plt.close('all')
+fig, axes = plt.subplots(8, figsize=(10, 7), sharex=True)
 
 labels = ['rat', 't0', 'gamma0', 'gamma1', 'ars', 'inc', 'b', 'c']
-fig = corner.corner(samples, show_titles=True, title_fmt='.2f', labels=labels, smooth=True, quantiles=[0.16, 0.5, 0.84])
+for i in range(8):
+  ax = axes[i]
+  ax.plot(samples[:, :, i].T, alpha=0.3, lw=1)
+  ax.set_xlim(0, samples.shape[1])
+  ax.set_ylabel(labels[i])
+  #ax.yaxis.set_label_coords(-0.1, 0.5)
+
+  axes[-1].set_xlabel("step number");
+
+# plt.savefig('/Users/c24050258/Desktop/Plots/chain.png', dpi=300, bbox_inches='tight')
+
+
+flat_samples = sampler.get_chain(flat=True)
+fig = corner.corner(flat_samples[burn_in:], show_titles=True, labels=labels, quantiles=[0.16, 0.5, 0.84])
+# plt.savefig('/Users/c24050258/Desktop/Plots/contours.png', dpi=300, bbox_inches='tight')
+
+theta_final = []
+for i in range(n_dim):
+    mcmc = np.percentile(flat_samples[:, i], [16, 50, 84])
+    q = np.diff(mcmc)
+    theta_final.append(mcmc[1])
+    # print(mcmc[1], q[0], q[1], labels[i])
+    
+# best_fit_model = plc_model(t, theta_final)
+# plt.figure('mcmc fit')
+# plt.plot(t, wlc, 'bo')
+# plt.plot(t, best_fit_model, 'r-')
 
 # final_vals = []
 # for i in range(n_dim):
