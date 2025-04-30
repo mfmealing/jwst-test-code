@@ -36,7 +36,7 @@ for seg in seg_list:
     slc = hdul[2].data
     wav = hdul[3].data
     var = (hdul[4].data)**2
-    
+    print(wav.shape)
     bjd = int_times['int_mid_BJD_TDB']
     mjd= int_times['int_mid_MJD_UTC']
     
@@ -54,7 +54,7 @@ for seg in seg_list:
 
     
     plt.plot(bjd, wlc)
-    
+
 wlc = np.nansum(slc_stack[:, idx], axis=1)
 slc = slc_stack
 var = var_stack
@@ -147,10 +147,6 @@ plt.figure('transmission spectrum')
 plt.errorbar(wav_old, r_old, r_err_old, fmt='ro', label='old data')
 plt.errorbar(wav_final, r_final, r_err_final, fmt='bo', label='new data')
 plt.legend(loc='lower center', numpoints=1)
-
-
-
-
 
 
 fixed_vals_mcmc = np.loadtxt('/Users/c24050258/Library/CloudStorage/OneDrive-CardiffUniversity/Projects/JWST_Test_Code/Data/mcmc_fit_fixed_vals.csv', delimiter=',')

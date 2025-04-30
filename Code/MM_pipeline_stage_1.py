@@ -129,6 +129,9 @@ for i in range(1,2):
     # if channel == 'prism':
     #     step.suppress_one_group = False # allows slopes to be obtained from gp 1 in sat ramps
     result = step.run(result)[1]
+    
+    print(result.wavelength)
+    xxx
       
          
     step = GainScaleStep()

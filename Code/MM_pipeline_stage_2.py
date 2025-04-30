@@ -128,9 +128,12 @@ for i in range(1,5):
     # step.save_results = True
     result = step.run(file)
     wav = result.wavelength
-     
+    
+    
     step = Extract2dStep()
     result = step.run(result)
+    
+    
     
     
     def interpolate_nans(array):
@@ -153,14 +156,12 @@ for i in range(1,5):
     step = SourceTypeStep()
     result = step.run(result)
     
-    
     step = WavecorrStep()
     step.output_dir = output_dir
     # step.save_results = True
     result = step.run(result)
     wav = np.nanmean(result.wavelength, axis=0)
     #plt.plot(wav)
-    
     idx = np.argwhere((wav<0.7)|(wav>2.0)).T[0]
     
     #print (result.data.shape)
@@ -169,7 +170,6 @@ for i in range(1,5):
     
     #plt.figure('1 d spec')
     #plt.plot(wav, result.data[0].sum(axis=0) )
-    
     
       
     # # =============================================================================
